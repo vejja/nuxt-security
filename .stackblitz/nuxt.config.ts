@@ -1,13 +1,29 @@
-// https://v3.nuxtjs.org/api/configuration/nuxt.config
+import MyModule from '../src/module'
+
 export default defineNuxtConfig({
-  modules: ['nuxt-security'],
-  // Following configuration is only necessary to make Stackblitz work correctly.
-  // For local projects, you do not need any configuration to try it out.
-  security: {
-    headers: {
-      crossOriginResourcePolicy: 'cross-origin',
-      contentSecurityPolicy: false,
-      xFrameOptions: false,
-    },
+  modules: [
+    MyModule
+  ],
+
+  routeRules: {
+    '/api/nonce-exempt': {
+      security: {
+        nonce: false
+      }
+    }
   },
-});
+  security: {
+    nonce: true,
+    headers: {
+      contentSecurityPolicy: {
+        'style-src': ["'self'", "'nonce-{{nonce}}'"],
+        'script-src': [
+          "'self'", // backwards compatibility for older browsers that don't support strict-dynamic
+          "'nonce-{{nonce}}'",
+          "'strict-dynamic'"
+        ],
+        'script-src-attr': ["'self'", "'nonce-{{nonce}}'", "'strict-dynamic'"]
+      }
+    }
+  }
+})
