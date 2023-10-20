@@ -2,9 +2,6 @@
   "private": true,
   "name": "basic",
   "type": "module",
-  "scripts": {
-    "dev": "nuxi dev"
-  },
   "dependencies": {
     "@nuxt/image": "^1.0.0"
   }
