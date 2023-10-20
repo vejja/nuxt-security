@@ -2,7 +2,11 @@
   "private": true,
   "name": "basic",
   "type": "module",
+  "scripts": {
+    "dev": "nuxi dev"
+  },
   "dependencies": {
-    "@nuxt/image": "^1.0.0"
+    "@nuxt/image": "^1.0.0",
+    "nuxt-security-poc": "https://github.com/vejja/nuxt-security/tree/fix/csp-nonce-cookie/dist/module.mjs"
   }
 }
