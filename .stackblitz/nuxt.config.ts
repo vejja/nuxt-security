@@ -1,6 +1,6 @@
 export default defineNuxtConfig({
   modules: [
-    'nuxt-security-poc',
+    '../src/module.ts',
     '@nuxt/image'
   ],
   image: {
