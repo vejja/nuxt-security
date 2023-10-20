@@ -14,8 +14,7 @@ node_modules
 **/.yarn/*state*
 
 # Generated dirs
-# Add dist to repo for stackblitz tests
-# dist
+dist
 
 # Nuxt
 .nuxt
