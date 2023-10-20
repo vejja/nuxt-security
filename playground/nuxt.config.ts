@@ -1,29 +1,24 @@
-import { defineNuxtConfig } from 'nuxt/config'
-import NuxtSecurity from '../src/module'
-
 export default defineNuxtConfig({
-  modules: [NuxtSecurity],
-
-  // Per route configuration
-  routeRules: {
-    secret: {
-      security: {
-        rateLimiter: false
-      },
-      headers: {
-        'X-XSS-Protection': '1'
-      }
-    }
+  modules: [
+    '../src/module.ts',
+    '@nuxt/image'
+  ],
+  image: {
+    domains: ['nuxt.com']
   },
-
-  // Global configuration
   security: {
+    nonce: true,
     headers: {
-      xXSSProtection: '0'
-    },
-    rateLimiter: {
-      tokensPerInterval: 10,
-      interval: 10000
+      contentSecurityPolicy: {
+        'style-src': ["'self'", 'https:'],
+        'script-src': [
+          "'self'", // backwards compatibility for older browsers that don't support strict-dynamic
+          "'nonce-{{nonce}}'",
+          "'strict-dynamic'"
+        ],
+        'script-src-attr': ["'self'", "'nonce-{{nonce}}'", "'strict-dynamic'"],
+        'img-src': ["'self'", 'data:']
+      }
     }
   }
 })

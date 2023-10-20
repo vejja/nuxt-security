@@ -1,3 +1,0 @@
-<template>
-  Secret Route
-</template>

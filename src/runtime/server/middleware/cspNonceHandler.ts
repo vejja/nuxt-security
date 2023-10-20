@@ -17,6 +17,8 @@ export default defineEventHandler((event) => {
     const nonceConfig: NonceOptions = routeRules.security.nonce
 
     // See if we are checking the nonce against the current value, or if we are renewing the nonce value
+    /*
+    // Removes the switch for 'mode: check'
     let nonce: string | undefined
     switch (nonceConfig?.mode) {
       case 'check': {
@@ -30,12 +32,18 @@ export default defineEventHandler((event) => {
       }
       case 'renew':
       default: {
-        nonce = nonceConfig?.value ? nonceConfig.value() : Buffer.from(crypto.randomUUID()).toString('base64')
+    */
+    // Don't open the door to an unsafe nonce algorithm
+    const nonce = /* nonceConfig?.value ? nonceConfig.value() : */Buffer.from(crypto.randomUUID()).toString('base64')
+    /*
+        // Removes the cookie
         setCookie(event, 'nonce', nonce, { sameSite: true, secure: true })
-        event.context.nonce = nonce
+        */
+    event.context.nonce = nonce
+    /*
         break
       }
-    }
+    } */
 
     // Set actual nonce value in CSP header
     csp = csp.replaceAll('{{nonce}}', nonce as string)
