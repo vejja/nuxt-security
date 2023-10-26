@@ -47,6 +47,8 @@
       </li>
     </ol>
     <br>
+    <NuxtLink to="proposal">Proposal</NuxtLink>
+    <br>
     <h4>
       Some generic comments about strict CSP
     </h4>
