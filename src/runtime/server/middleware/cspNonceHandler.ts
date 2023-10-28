@@ -1,49 +1,13 @@
 import crypto from 'node:crypto'
-import { createError, defineEventHandler, getCookie, sendError, setCookie } from 'h3'
-// @ts-ignore
-import { getRouteRules } from '#imports'
-
-export type NonceOptions = {
-  enabled: boolean;
-  mode: 'renew' | 'check';
-  value: undefined | (() => string);
-}
+import { getRouteRules, defineEventHandler } from '#imports'
 
 export default defineEventHandler((event) => {
   let csp = `${event.node.res.getHeader('Content-Security-Policy')}`
   const routeRules = getRouteRules(event)
 
   if (routeRules.security.nonce !== false) {
-    const nonceConfig: NonceOptions = routeRules.security.nonce
-
-    // See if we are checking the nonce against the current value, or if we are renewing the nonce value
-    /*
-    // Removes the switch for 'mode: check'
-    let nonce: string | undefined
-    switch (nonceConfig?.mode) {
-      case 'check': {
-        nonce = event.context.nonce ?? getCookie(event, 'nonce')
-
-        if (!nonce) {
-          return sendError(event, createError({ statusCode: 401, statusMessage: 'Nonce is not set' }))
-        }
-
-        break
-      }
-      case 'renew':
-      default: {
-    */
-    // Don't open the door to an unsafe nonce algorithm
-    const nonce = /* nonceConfig?.value ? nonceConfig.value() : */Buffer.from(crypto.randomUUID()).toString('base64')
-    /*
-        // Removes the cookie
-        setCookie(event, 'nonce', nonce, { sameSite: true, secure: true })
-        */
+    const nonce = crypto.randomBytes(16).toString('base64')
     event.context.nonce = nonce
-    /*
-        break
-      }
-    } */
 
     // Set actual nonce value in CSP header
     csp = csp.replaceAll('{{nonce}}', nonce as string)
