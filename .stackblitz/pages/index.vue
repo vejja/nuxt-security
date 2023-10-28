@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <article class="prose">
     <h1>
       This is a proof of concept on strict CSP without cookies
     </h1>
@@ -81,5 +81,5 @@
         If you cannot achieve CSP, don't use CSP. CSP is not mandatory.
       </li>
     </ul>
-  </div>
+  </article>
 </template>

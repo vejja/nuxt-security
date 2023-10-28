@@ -1,8 +1,8 @@
 export default defineNuxtConfig({
+  extends: ['content-wind'],
   modules: [
-    '../src/module.ts',
     '@nuxt/image',
-    '@nuxt/content'
+    '../src/module.ts'
   ],
   image: {
     domains: ['nuxt.com']
@@ -17,7 +17,7 @@ export default defineNuxtConfig({
           "'nonce-{{nonce}}'",
           "'strict-dynamic'"
         ],
-        'script-src-attr': ["'self'", "'nonce-{{nonce}}'", "'strict-dynamic'"],
+        'script-src-attr': ["'self'", "'nonce-{{nonce}}'"],
         'img-src': ["'self'", 'data:']
       }
     }
