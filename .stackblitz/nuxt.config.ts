@@ -9,12 +9,15 @@ export default defineNuxtConfig({
   },
   content: {
     documentDriven: false
-  },
+  },/*
+  nitro: {
+    preset: 'vercel'
+  },*/
   security: {
     nonce: true,
     headers: {
       contentSecurityPolicy: {
-        'style-src': ["'self'", 'https:'],
+        'style-src': process.env.NODE_ENV === 'development' ? ["'self'", 'https:', "'unsafe-inline'"] : ["'self'", 'https:', "'nonce-{{nonce}}'"],
         'script-src': [
           "'self'", // backwards compatibility for older browsers that don't support strict-dynamic
           "'nonce-{{nonce}}'",
@@ -22,6 +25,18 @@ export default defineNuxtConfig({
         ],
         'script-src-attr': ["'self'", "'nonce-{{nonce}}'"],
         'img-src': ["'self'", 'data:']
+      }
+    }
+  },
+  routeRules: {
+    'api/generated-css': {
+      headers: {
+        'Content-Type': 'text/css'
+      }
+    },
+    'api/generated-script': {
+      headers: {
+        'Content-Type': 'application/javascript'
       }
     }
   }
