@@ -9,10 +9,10 @@ export default defineNuxtConfig({
   },
   content: {
     documentDriven: false
-  },
+  },/*
   nitro: {
     preset: 'vercel'
-  },
+  },*/
   security: {
     nonce: true,
     headers: {

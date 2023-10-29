@@ -55,10 +55,11 @@ export default defineNitroPlugin((nitroApp) => {
     const cspConfig = moduleOptions.headers.contentSecurityPolicy
 
     if (cspConfig && typeof cspConfig !== 'string') {
+      const content = generateCspMetaTag(cspConfig, scriptHashes, styleHashes)
       // Insert hashes in the http meta tag
-      html.head.push(generateCspMetaTag(cspConfig, scriptHashes, styleHashes))
-      // Also insert hashes in header for presets that support headers
-      generateCspHeader(event, cspConfig, scriptHashes, styleHashes)
+      html.head.push(`<meta http-equiv="Content-Security-Policy" content="${content}">`)
+      // Also insert hashes in static headers for presets that generate headers rules for static files
+      updateRouteRules(event, content)
     }
 
 
@@ -102,52 +103,13 @@ export default defineNitroPlugin((nitroApp) => {
         contentArray.push(`${key} ${policyValue}`)
       }
     }
-    const content = contentArray.join('; ')
-
-    return `<meta http-equiv="Content-Security-Policy" content="${content}">`
+    const content = contentArray.join('; ').replaceAll("'nonce-{{nonce}}'", '')
+    return content
   }
 
-  // Insert hashes in the HTTP header
   // In some Nitro presets (e.g. Vercel), the header rules are generated for the static server
-  // By default we modify headers to support these presets
-  function generateCspHeader(event: H3Event, policies: ContentSecurityPolicyValue, scriptHashes: string[], styleHashes: string[]) {
-    const unsupportedPolicies:Record<string, boolean> = {
-      'frame-ancestors': true,
-      'report-uri': true,
-      sandbox: true
-    }
-
-    const tagPolicies = defu(policies)
-    if (scriptHashes.length > 0 && moduleOptions.ssg?.hashScripts) {
-      // Remove '""'
-      tagPolicies['script-src'] = (tagPolicies['script-src'] ?? []).concat(scriptHashes)
-    }
-    if (styleHashes.length > 0 && moduleOptions.ssg?.hashScripts) {
-      // Remove '""'
-      tagPolicies['style-src'] = (tagPolicies['style-src'] ?? []).concat(styleHashes)
-    }
-
-    const contentArray: string[] = []
-    for (const [key, value] of Object.entries(tagPolicies)) {
-      if (unsupportedPolicies[key]) {
-        continue
-      }
-
-      let policyValue: string
-
-      if (Array.isArray(value)) {
-        policyValue = value.join(' ')
-      } else if (typeof value === 'boolean') {
-        policyValue = ''
-      } else {
-        policyValue = value
-      }
-
-      if (value !== false) {
-        contentArray.push(`${key} ${policyValue}`)
-      }
-    }
-    const content = contentArray.join('; ')
+  // By default we update the nitro route rules with their calculated CSP value to support this possibility
+  function updateRouteRules(event: H3Event, content: string) {
     const path = event.path
     const routeRules = getRouteRules(event)
     let headers
