@@ -25,24 +25,38 @@ export default defineNitroPlugin((nitroApp) => {
     }
 
     const scriptPattern = /<script[^>]*>(.*?)<\/script>/gs
+    const stylePattern = /<style>(.*?)<\/style>/gs
     const scriptHashes: string[] = []
+    const styleHashes: string[] = []
     const hashAlgorithm = 'sha256'
 
-    let match
-    while ((match = scriptPattern.exec(html.bodyAppend.join(''))) !== null) {
-      if (match[1]) {
-        scriptHashes.push(generateHash(match[1], hashAlgorithm))
+    for (const section of ['body', 'bodyAppend', 'bodyPrepend', 'head']) {
+      const htmlRecords = html as unknown as Record<string, string[]>
+      const elements = htmlRecords[section]
+      for (const element of elements) {
+        let match
+        while ((match = scriptPattern.exec(element)) !== null) {
+          if (match[1]) {
+            scriptHashes.push(generateHash(match[1], hashAlgorithm))
+          }
+        }
+        while ((match = stylePattern.exec(element)) !== null) {
+          if (match[1]) {
+            styleHashes.push(generateHash(match[1], hashAlgorithm))
+          }
+        }
       }
     }
+    
 
     const cspConfig = moduleOptions.headers.contentSecurityPolicy
 
     if (cspConfig && typeof cspConfig !== 'string') {
-      html.head.push(generateCspMetaTag(cspConfig, scriptHashes))
+      html.head.push(generateCspMetaTag(cspConfig, scriptHashes, styleHashes))
     }
   })
 
-  function generateCspMetaTag (policies: ContentSecurityPolicyValue, scriptHashes: string[]) {
+  function generateCspMetaTag (policies: ContentSecurityPolicyValue, scriptHashes: string[], styleHashes: string[]) {
     const unsupportedPolicies:Record<string, boolean> = {
       'frame-ancestors': true,
       'report-uri': true,
@@ -53,6 +67,10 @@ export default defineNitroPlugin((nitroApp) => {
     if (scriptHashes.length > 0 && moduleOptions.ssg?.hashScripts) {
       // Remove '""'
       tagPolicies['script-src'] = (tagPolicies['script-src'] ?? []).concat(scriptHashes)
+    }
+    if (styleHashes.length > 0 && moduleOptions.ssg?.hashScripts) {
+      // Remove '""'
+      tagPolicies['style-src'] = (tagPolicies['style-src'] ?? []).concat(styleHashes)
     }
 
     const contentArray: string[] = []
