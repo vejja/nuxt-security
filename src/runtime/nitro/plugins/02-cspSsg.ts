@@ -10,7 +10,6 @@ import type {
 } from '../../../types/headers'
 import { defineNitroPlugin, useRuntimeConfig, getRouteRules } from '#imports'
 import { useNitro } from '@nuxt/kit'
-import { cp } from 'node:fs'
 
 const moduleOptions = useRuntimeConfig().security
 
