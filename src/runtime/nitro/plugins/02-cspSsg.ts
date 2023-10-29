@@ -26,9 +26,11 @@ export default defineNitroPlugin((nitroApp) => {
       return
     }
 
-    // Detect both inline scripts and inline styles
-    const scriptPattern = /<script[^>]*>(.*?)<\/script>/gs
-    const stylePattern = /<style>(.*?)<\/style>/gs
+    // Detect bothe inline scripts and inline styles
+    const inlineScriptPattern = /<script[^>]*>(.*?)<\/script>/gs
+    const inlineStylePattern = /<style>(.*?)<\/style>/gs
+    // Whitelist external scripts based on integrity attribute
+    const externalScriptPattern = /<script .*?integrity="(.*?)".*?(\/>|>.*?<\/script>)/gs
     const scriptHashes: string[] = []
     const styleHashes: string[] = []
     const hashAlgorithm = 'sha256'
@@ -39,14 +41,19 @@ export default defineNitroPlugin((nitroApp) => {
       const elements = htmlRecords[section]
       for (const element of elements) {
         let match
-        while ((match = scriptPattern.exec(element)) !== null) {
+        while ((match = inlineScriptPattern.exec(element)) !== null) {
           if (match[1]) {
             scriptHashes.push(generateHash(match[1], hashAlgorithm))
           }
         }
-        while ((match = stylePattern.exec(element)) !== null) {
+        while ((match = inlineStylePattern.exec(element)) !== null) {
           if (match[1]) {
             styleHashes.push(generateHash(match[1], hashAlgorithm))
+          }
+        }
+        while ((match = externalScriptPattern.exec(element)) !== null) {
+          if (match[1]) {
+            scriptHashes.push(match[1])
           }
         }
       }
