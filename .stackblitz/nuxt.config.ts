@@ -9,10 +9,10 @@ export default defineNuxtConfig({
   },
   content: {
     documentDriven: false
-  },/*
+  },
   nitro: {
     preset: 'vercel'
-  },*/
+  },
   security: {
     nonce: true,
     headers: {
@@ -29,12 +29,12 @@ export default defineNuxtConfig({
     }
   },
   routeRules: {
-    'api/generated-css': {
+    '/api/generated-css': {
       headers: {
         'Content-Type': 'text/css'
       }
     },
-    'api/generated-script': {
+    '/api/generated-script': {
       headers: {
         'Content-Type': 'application/javascript'
       }
