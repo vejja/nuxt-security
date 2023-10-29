@@ -7,11 +7,14 @@ export default defineNuxtConfig({
   image: {
     domains: ['nuxt.com']
   },
+  content: {
+    documentDriven: false
+  },
   security: {
     nonce: true,
     headers: {
       contentSecurityPolicy: {
-        'style-src': ["'self'", 'https:', "'unsafe-inline'"],
+        'style-src': ["'self'", 'https:'],
         'script-src': [
           "'self'", // backwards compatibility for older browsers that don't support strict-dynamic
           "'nonce-{{nonce}}'",
