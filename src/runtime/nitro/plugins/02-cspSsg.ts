@@ -53,7 +53,7 @@ export default defineNitroPlugin((nitroApp) => {
         }
         while ((match = externalScriptPattern.exec(element)) !== null) {
           if (match[1]) {
-            scriptHashes.push(match[1])
+            scriptHashes.push(`'${match[1]}'`)
           }
         }
       }
