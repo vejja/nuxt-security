@@ -12,7 +12,7 @@
     "@nuxt-themes/docus": "^1.15.0",
     "@nuxtlabs/github-module": "^1.6.3",
     "@nuxtjs/plausible": "^0.2.3",
-    "nuxt": "3.7.4"
+    "nuxt": "^3.8.0"
   },
   "resolutions": {
     "string-width": "4.2.3"

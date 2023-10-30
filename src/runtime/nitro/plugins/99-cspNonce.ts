@@ -28,6 +28,15 @@ export default defineNitroPlugin((nitroApp) => {
       return meta.replaceAll('{{nonce}}', nonce)
     })
 
+    for (const section of ['body', 'bodyAppend', 'bodyPrepend', 'head']) {
+      const htmlRecords = html as unknown as Record<string, string[]>
+      let elements = htmlRecords[section]
+      elements = elements.map(link => link.replaceAll(tagNotPrecededByQuotes('link'), `<link nonce="${nonce}"`))
+      elements = elements.map(script => script.replaceAll(tagNotPrecededByQuotes('script'), `<script nonce="${nonce}"`))
+      elements = elements.map(style => style.replaceAll(tagNotPrecededByQuotes('style'), `<style nonce="${nonce}"`))
+      htmlRecords[section] = elements
+    }
+    /*
     // Add nonce attribute to all link tags
     html.head = html.head.map(link => link.replaceAll(tagNotPrecededByQuotes('link'), `<link nonce="${nonce}"`))
     html.bodyAppend = html.bodyAppend.map(link => link.replaceAll(tagNotPrecededByQuotes('link'), `<link nonce="${nonce}"`))
@@ -39,6 +48,7 @@ export default defineNitroPlugin((nitroApp) => {
     // Add nonce attribute to all style tags
     html.head = html.head.map(style => style.replaceAll(tagNotPrecededByQuotes('style'), `<style nonce="${nonce}"`))
     html.bodyAppend = html.bodyAppend.map(style => style.replaceAll(tagNotPrecededByQuotes('style'), `<style nonce="${nonce}"`))
+    */
   })
 
   function parseNonce (content: string) {
