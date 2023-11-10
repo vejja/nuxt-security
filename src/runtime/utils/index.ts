@@ -1,10 +1,15 @@
 import { createHash } from 'node:crypto'
 import { readdir, readFile, writeFile, mkdir } from 'node:fs/promises'
+import { join, extname } from 'pathe'
 import type { Nitro } from 'nitropack'
-import { join } from 'pathe'
+import type { H3Event } from 'h3'
 
-
-export default async function (nitro: Nitro) {
+/**
+ * Calculate and saves the hashes of all the assets belonging to the Nuxt bundle
+ * This function must be called within a Nuxt build step
+ * @param nitro The nitro instance
+ */
+export async function buildAssetsHashes(nitro: Nitro) {
   const hashAlgorithm = 'sha384'
   const sriHashes: Record<string, string> = {}
 
@@ -57,8 +62,35 @@ export default async function (nitro: Nitro) {
 
 }
 
-function generateHash (content: Buffer, hashAlgorithm: string) {
+/**
+ * Calculate the hash of an element in a CSP and SRI compliant format (shaXXX-base64).
+ * As per standards, UTF-8 encoding is used for text and no encoding is used for files.
+ * @param content The content to be hashed, can either be a string (inline elements), or a Buffer (file elements)
+ * @param hashAlgorithm A valid hash algorithm. Only sha256, 384 and 512 variants are supported
+ */
+export function generateHash (content: Buffer | string, hashAlgorithm: 'sha256' | 'sha384' | 'sha512') {
   const hash = createHash(hashAlgorithm)
   hash.update(content)
   return `${hashAlgorithm}-${hash.digest('base64')}`
+}
+
+/**
+ * Detect if a page is being pre-rendered, based on the x-nitro-prerender header.
+ * Used to differentiate SSR vs SSG.
+ * @param event The h3 request event being processed by Nitro
+ */
+export function isPrerendering(event: H3Event): boolean {
+  const nitroPrerenderHeader = 'x-nitro-prerender'
+
+  // Page is not prerendered
+  if (!event.node.req.headers[nitroPrerenderHeader]) {
+    return false
+  }
+
+  // File is not HTML
+  if (!['', '.html'].includes(extname(event.node.req.headers[nitroPrerenderHeader] as string))) {
+    return false
+  }
+
+  return true
 }

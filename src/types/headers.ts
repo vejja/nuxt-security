@@ -39,7 +39,6 @@ export type CSPSourceValue =
   | "'none'"
   | "'strict-dynamic'"
   | "'report-sample'"
-  | "'nonce=<base64-value>'"
   // for convenient use of any hosts, protocols, hashes and binaries
   | string;
 
@@ -70,7 +69,7 @@ export type ContentSecurityPolicyValue = {
   'manifest-src'?: CSPSourceValue[];
   'media-src'?: CSPSourceValue[];
   'object-src'?: CSPSourceValue[];
-  'prefetch-src'?: CSPSourceValue[];
+  'prefetch-src'?: CSPSourceValue[]; // Deprecated
   'script-src'?: CSPSourceValue[];
   'script-src-elem'?: CSPSourceValue[];
   'script-src-attr'?: CSPSourceValue[];
@@ -79,13 +78,15 @@ export type ContentSecurityPolicyValue = {
   'style-src-attr'?: CSPSourceValue[];
   'worker-src'?: CSPSourceValue[];
   'base-uri'?: CSPSourceValue[];
-  'sandbox'?: CSPSandboxValue[];
   'form-action'?: CSPSourceValue[];
   'frame-ancestors'?: ("'self'" | "'none'" | string)[];
-  'navigate-to'?: ("'self'" | "'none'" | "'unsafe-allow-redirects'" | string)[];
-  'report-uri'?: string[];
-  'report-to'?: string[];
+  'trusted-types'?: string[]; // Experimental
+  'sandbox'?: CSPSandboxValue[];
+  //'navigate-to'?: ("'self'" | "'none'" | "'unsafe-allow-redirects'" | string)[]; // Has been removed from the spec and not implemented in browsers
+  'report-uri'?: string; // Deprecated, use report-to
+  'report-to'?: string;
   'upgrade-insecure-requests'?: boolean;
+  'require-trusted-types-for'?: 'script' // Experimental
 };
 
 export type StrictTransportSecurityValue = {

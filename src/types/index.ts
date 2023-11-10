@@ -33,4 +33,6 @@ export interface NuxtSecurityRouteRules {
   corsHandler?: CorsOptions | false;
   allowedMethodsRestricter?: AllowedHTTPMethods | false;
   nonce?: boolean;
+  ssg?: Ssg;
+  sri?: boolean;
 }

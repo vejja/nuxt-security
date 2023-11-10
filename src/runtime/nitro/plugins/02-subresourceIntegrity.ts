@@ -1,28 +1,33 @@
-import type { H3Event } from 'h3'
-import { extname } from 'pathe'
-import { useStorage } from '#imports'
+import { useStorage, getRouteRules } from '#imports'
 import * as cheerio from 'cheerio'
+import { isPrerendering } from '../../utils'
 
 export default defineNitroPlugin((nitroApp) => {
   nitroApp.hooks.hook('render:html', async (html, { event }) => {
-    const prerendering = isPrerendering(event)
+    
+    // Exit if Subresource Integrity is disabled for the route
+    const { security } = getRouteRules(event)
+    if (!security.sri) {
+      return
+    }
 
-    // Retrieve the sriHases that we computed at build time
+    // Retrieve the sriHases that we computed at build time depending on whether SSR or SSG
     //
-    // - If we are in a pre-rendering step of nuxi generate
+    // - If we are in a pre-rendering step of nuxi generate (SSG)
     //   Then the /integrity directory does not exist in server assets
     //   But it is still in the .nuxt build directory
     //
     // - Conversely, if we are in a standalone SSR server pre-built by nuxi build
     //   Then we don't have a .nuxt build directory anymore
     //   But we did save the /integrity directory into the server assets
-
+    const prerendering = isPrerendering(event)
     const storageBase = prerendering ? 'build' : 'assets'
     const sriHashes: Record<string, string> = await useStorage(storageBase).getItem('integrity:sriHashes.json') || {}
     
     // Scan all relevant sections of the NuxtRenderHtmlContext
     // Note: integrity can only be set on scripts and on links with rel preload, modulepreload and stylesheet
-    // However the SRI standard provides that other elements may be added to that list in the future
+    // However the SRI standard provides that other elements may be added to that list in the future, so we parse all links
+    // https://www.w3.org/TR/SRI/#verification-of-html-document-subresources
     for (const section of ['body', 'bodyAppend', 'bodyPrepend', 'head']) {
       const htmlRecords = html as unknown as Record<string, string[]>
 
@@ -62,25 +67,4 @@ export default defineNitroPlugin((nitroApp) => {
       })
     }
   })
-
-  /**
-   * Detect if page is being pre-rendered
-   * @param event H3Event
-   * @returns boolean
-   */
-    function isPrerendering(event: H3Event): boolean {
-      const nitroPrerenderHeader = 'x-nitro-prerender'
-  
-      // Page is not prerendered
-      if (!event.node.req.headers[nitroPrerenderHeader]) {
-        return false
-      }
-  
-      // File is not HTML
-      if (!['', '.html'].includes(extname(event.node.req.headers[nitroPrerenderHeader] as string))) {
-        return false
-      }
-  
-      return true
-    }
 })

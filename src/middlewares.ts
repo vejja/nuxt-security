@@ -8,5 +8,7 @@ export const SECURITY_MIDDLEWARE_NAMES: SecurityMiddlewareNames = {
   allowedMethodsRestricter: 'allowedMethodsRestricter',
   basicAuth: 'basicAuth',
   csrf: 'csrf',
-  nonce: 'nonce'
+  nonce: 'nonce',
+  ssg: 'ssg',
+  sri: 'sri'
 }

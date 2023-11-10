@@ -1,8 +1,5 @@
-import { defineNuxtConfig } from 'nuxt/config'
-import NuxtSecurity from '../src/module'
-
 export default defineNuxtConfig({
-  modules: [NuxtSecurity],
+  modules: ['../src/module'],
 
   // Per route configuration
   routeRules: {
@@ -18,6 +15,9 @@ export default defineNuxtConfig({
 
   // Global configuration
   security: {
+    ssg: {
+      hashScripts: true
+    },
     headers: {
       xXSSProtection: '0'
     },

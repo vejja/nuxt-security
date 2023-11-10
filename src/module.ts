@@ -10,6 +10,7 @@ import type {
   NuxtSecurityRouteRules
 } from './types/index'
 import type {
+ContentSecurityPolicyValue,
   SecurityHeaders
 } from './types/headers'
 import type {
@@ -19,8 +20,9 @@ import {
   defaultSecurityConfig
 } from './defaultConfig'
 import { SECURITY_MIDDLEWARE_NAMES } from './middlewares'
-import { type HeaderMapper, SECURITY_HEADER_NAMES, getHeaderValueFromOptions } from './headers'
-import sriHashes from './runtime/utils/sriHashes'
+import { type HeaderMapper, SECURITY_HEADER_NAMES, getHeaderValueFromOptions, getOptionHeaderNameForHTTP } from './headers'
+import { buildAssetsHashes } from './runtime/utils'
+import { stringify } from 'node:querystring'
 
 declare module 'nuxt/schema' {
   interface NuxtOptions {
@@ -37,7 +39,7 @@ declare module 'nitropack' {
     security: NuxtSecurityRouteRules;
   }
   interface NitroRouteConfig {
-    security: NuxtSecurityRouteRules;
+    security?: NuxtSecurityRouteRules;
   }
 }
 
@@ -84,13 +86,13 @@ export default defineNuxtModule<ModuleOptions>({
         ...securityOptions
       }
     )
-
+    console.log('options', securityOptions)
     if (securityOptions.headers) {
       setSecurityResponseHeaders(nuxt, securityOptions.headers)
     }
 
     setSecurityRouteRules(nuxt, securityOptions)
-
+    console.log('rules', nuxt.options.nitro.routeRules)
     // Remove Content-Security-Policy header in pre-rendered routes
     // When pre-rendered, the CSP is provided via html <meta> instead
     // If kept, this would block the site from rendering
@@ -161,7 +163,7 @@ export default defineNuxtModule<ModuleOptions>({
     // Calculates SRI hashes at build time
     if (nuxt.options.security.sri) {
       // At server build time, we calculate sri hashes
-      nuxt.hook('nitro:build:public-assets', sriHashes)
+      nuxt.hook('nitro:build:public-assets', buildAssetsHashes)
 
     }
 
@@ -179,8 +181,49 @@ export default defineNuxtModule<ModuleOptions>({
   }
 })
 
+
+/**
+ * Insert security options in the radix router
+ * @param nuxt 
+ * @param securityOptions 
+ */
+const setSecurityRouteRules = (nuxt: Nuxt, securityOptions: ModuleOptions) => {
+  nuxt.options.nitro.routeRules = defu(
+    nuxt.options.nitro.routeRules,
+    { '/**': { security: securityOptions } }
+  )
+}
+
+/**
+ * Support the deprecated method where the SecurityOptions format could be used in the standard header property of the radix router 
+ * @param nuxt 
+ * @param securityOptions 
+ */
+const supportDeprecatedHeaderRouteRulesFormat = (nuxt: Nuxt, securityOptions: ModuleOptions) => {
+  for (const route in nuxt.options.nitro.routeRules) {
+    const routeRule = nuxt.options.nitro.routeRules[route]
+    const headers: Record<string, any> | undefined = routeRule.headers
+    if (!headers) {
+      continue
+    }
+
+    const newSecurityHeaders: SecurityHeaders = {}
+    for (const headerName in headers) {
+      const headerValue = headers[headerName]
+      // If it's a standard header of the route rules, don't modify
+      if (typeof headerValue === 'string') {
+        continue
+      }
+      // The header was provided in the deprecated format as a SecurityOptions header, transfer into security object
+      const securityName = getOptionHeaderNameForHTTP(headerName)
+      newSecurityHeaders[securityName] = headerValue
+      // delete headers[headerName]
+    }
+  }
+}
+
 const setSecurityResponseHeaders = (nuxt: Nuxt, headers: SecurityHeaders) => {
-  for (const header in headers as SecurityHeaders) {
+  for (const header in headers) {
     if (headers[header as keyof typeof headers]) {
       const nitroRouteRules = nuxt.options.nitro.routeRules
       const headerOptions = headers[header as keyof typeof headers]
@@ -190,27 +233,6 @@ const setSecurityResponseHeaders = (nuxt: Nuxt, headers: SecurityHeaders) => {
         headers: {
           ...nitroRouteRules![headerRoute]?.headers,
           [SECURITY_HEADER_NAMES[header]]: getHeaderValueFromOptions(header as HeaderMapper, headerOptions as any)
-        }
-      }
-    }
-  }
-}
-
-const setSecurityRouteRules = (nuxt: Nuxt, securityOptions: ModuleOptions) => {
-  const nitroRouteRules = nuxt.options.nitro.routeRules
-  const { headers, enabled, hidePoweredBy, ...rest } = securityOptions
-  for (const middleware in rest) {
-    const middlewareConfig = securityOptions[middleware as keyof typeof securityOptions] as any
-    if (typeof middlewareConfig !== 'boolean') {
-      const middlewareRoute = '/**'
-      nitroRouteRules![middlewareRoute] = {
-        ...nitroRouteRules![middlewareRoute],
-        security: {
-          ...nitroRouteRules![middlewareRoute]?.security,
-          [SECURITY_MIDDLEWARE_NAMES[middleware]]: {
-            ...middlewareConfig,
-            throwError: middlewareConfig.throwError
-          }
         }
       }
     }
@@ -269,31 +291,24 @@ const registerSecurityNitroPlugins = (
     }
 
     // Register nitro plugin to enable subresource integrity
-    if (securityOptions.sri) {
-      config.plugins.push(
-        normalize(
-          fileURLToPath(
-            new URL('./runtime/nitro/plugins/01m-subresourceIntegrity', import.meta.url)
-          )
+    config.plugins.push(
+      normalize(
+        fileURLToPath(
+          new URL('./runtime/nitro/plugins/02-subresourceIntegrity', import.meta.url)
         )
       )
-    }
+    )
 
-    // Register nitro plugin to enable CSP for SSG
-    if (
-      typeof securityOptions.headers === 'object' &&
-      securityOptions.headers.contentSecurityPolicy
-    ) {
-      config.plugins.push(
-        normalize(
-          fileURLToPath(
-            new URL('./runtime/nitro/plugins/02-cspSsg', import.meta.url)
-          )
+    // Register nitro plugin to enable CSP hashes for SSG
+    config.plugins.push(
+      normalize(
+        fileURLToPath(
+          new URL('./runtime/nitro/plugins/03-cspSsg', import.meta.url)
         )
       )
-    }
+    )
 
-    // Nitro plugin to enable nonce for CSP
+    // Register nitro plugin to enable CSP nonces for SSR
     if (nuxt.options.security.nonce) {
       config.plugins.push(
         normalize(

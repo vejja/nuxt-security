@@ -1,5 +1,3 @@
-import path from 'node:path'
-import crypto from 'node:crypto'
 import type { H3Event } from 'h3'
 import defu from 'defu'
 import type {
@@ -8,18 +6,26 @@ import type {
 import { defineNitroPlugin, useRuntimeConfig, getRouteRules } from '#imports'
 import { useNitro } from '@nuxt/kit'
 import * as cheerio from 'cheerio'
+import { isPrerendering, generateHash } from '../../utils'
 
 const moduleOptions = useRuntimeConfig().security
 
 export default defineNitroPlugin((nitroApp) => {
   nitroApp.hooks.hook('render:html', (html, { event }) => {
-    // Content Security Policy
-
-    if (!isContentSecurityPolicyEnabled(event)) {
+    // Exit in the SSR case
+    if (!isPrerendering(event)) {
       return
     }
 
-    if (!moduleOptions.headers) {
+    const { headers, security } = getRouteRules(event)
+    console.log('in csp ssg', headers, security)
+    if (!headers || !headers.contentSecurityPolicy || typeof headers.contentSecurityPolicy === 'string') {
+      // This means that CSP is not enabled, or that the CSP header has been manually set in the string format
+      return
+    }
+    const { ssg } = security
+    if (!ssg || (!ssg.hashScripts && !ssg.hashStyles)) {
+      // This means that SSG hash support is disabled for both scripts and styles, skip
       return
     }
 
@@ -34,28 +40,31 @@ export default defineNitroPlugin((nitroApp) => {
       for (const element of elements) {
         const $ = cheerio.load(element, null, false)
 
-        // Parse all script tags
-        $('script').each((i, script) => {
-          const scriptText = $(script).text()
-          const scriptAttrs = $(script).attr()
-          const src = scriptAttrs?.src
-          const integrity = scriptAttrs?.integrity
-          if (!src && scriptText) {
-            // Hash inline scripts with content
-            scriptHashes.add(generateHash(scriptText, hashAlgorithm))
-          } else if (src && integrity) {
-            // Whitelist external scripts with integrity
-            scriptHashes.add(`'${integrity}'`)
-          }
-        })
+        // Parse all script tags if option is enabled
+        if (ssg.hashScripts) {
+          $('script').each((i, script) => {
+            const scriptText = $(script).text()
+            const scriptAttrs = $(script).attr()
+            const src = scriptAttrs?.src
+            const integrity = scriptAttrs?.integrity
+            if (!src && scriptText) {
+              // Hash inline scripts with content
+              scriptHashes.add(generateHash(scriptText, hashAlgorithm))
+            } else if (src && integrity) {
+              // Whitelist external scripts with integrity
+              scriptHashes.add(`'${integrity}'`)
+            }
+          })
+        }
 
-        // Parse all style tags
-        $('style').each((i, style) => {
-          const styleText = $(style).text()
-          if (styleText) {
-            // Hash inline styles with content
-            styleHashes.add(generateHash(styleText, hashAlgorithm))
-          }
+        // Parse all style tags if option is enabled
+        if (ssg.hashScripts) {
+          $('style').each((i, style) => {
+            const styleText = $(style).text()
+            if (styleText) {
+              // Hash inline styles with content
+              styleHashes.add(generateHash(styleText, hashAlgorithm))
+            }
         })
 
         // Parse all link tags
@@ -67,8 +76,8 @@ export default defineNitroPlugin((nitroApp) => {
             const rel = linkAttrs?.rel
             // HTML standard defines only 3 rel values for valid integrity attributes on links : stylesheet, preload and modulepreload
             // https://html.spec.whatwg.org/multipage/semantics.html#attr-link-integrity
-            if (rel === 'stylesheet') {
-              // style: add to style-src
+            if (rel === 'stylesheet' && ssg.hashStyles) {
+              // style: add to style-src if option is enabled
               styleHashes.add(`'${integrity}'`)
             } else if (rel === 'preload') {
               // Fetch standard defines the destination (https://fetch.spec.whatwg.org/#destination-table)
@@ -80,56 +89,39 @@ export default defineNitroPlugin((nitroApp) => {
                 case 'audioworklet':
                 case 'paintworklet':
                 case 'xlst':
-                  scriptHashes.add(`'${integrity}'`)
+                  if (ssg.hashScripts) {
+                    scriptHashes.add(`'${integrity}'`)
+                  }
                   break
                 default:
                   break
               }
-            } else if (rel === 'modulepreload') {
+            } else if (rel === 'modulepreload' && ssg.hashScripts) {
               // script is the default and only possible destination
               scriptHashes.add(`'${integrity}'`)
             }
           }
-        })
+          })
+        }
       }
     }
-
-    const cspConfig = moduleOptions.headers.contentSecurityPolicy
-
-    if (cspConfig && typeof cspConfig !== 'string') {
-      const content = generateCspMetaTag(cspConfig, scriptHashes, styleHashes)
-      // Insert hashes in the http meta tag
-      html.head.push(`<meta http-equiv="Content-Security-Policy" content="${content}">`)
-      // Also insert hashes in static headers for presets that generate headers rules for static files
-      updateRouteRules(event, content)
-    }
+    console.log('csp before', headers.contentSecurityPolicy)
+    const content = generateCspMetaTag(headers.contentSecurityPolicy, scriptHashes, styleHashes)
+    console.log('csp after', headers.contentSecurityPolicy)
+    // Insert hashes in the http meta tag
+    html.head.push(`<meta http-equiv="Content-Security-Policy" content="${content}">`)
+    // Also insert hashes in static headers for presets that generate headers rules for static files
+    updateRouteRules(event, content)
 
   })
 
   // Insert hashes in the CSP meta tag for both the script-src and the style-src policies
-  function generateCspMetaTag (policies: ContentSecurityPolicyValue, scriptHashes: Set<string>, styleHashes: Set<string>) {
-    const unsupportedPolicies:Record<string, boolean> = {
-      'frame-ancestors': true,
-      'report-uri': true,
-      sandbox: true
-    }
-
-    const tagPolicies = defu(policies) as ContentSecurityPolicyValue
-    if (scriptHashes.size > 0 && moduleOptions.ssg?.hashScripts) {
-      // Remove '""'
-      tagPolicies['script-src'] = (tagPolicies['script-src'] ?? []).concat(...scriptHashes)
-    }
-    if (styleHashes.size > 0 && moduleOptions.ssg?.hashStyles) {
-      // Remove '""'
-      tagPolicies['style-src'] = (tagPolicies['style-src'] ?? []).concat(...styleHashes)
-    }
+  function generateCspMetaTag (csp: ContentSecurityPolicyValue, scriptHashes: Set<string>, styleHashes: Set<string>) {
+    csp['script-src'] = (csp['script-src'] ?? []).concat(...scriptHashes)
+    csp['style-src'] = (csp['style-src'] ?? []).concat(...styleHashes)
 
     const contentArray: string[] = []
-    for (const [key, value] of Object.entries(tagPolicies)) {
-      if (unsupportedPolicies[key]) {
-        continue
-      }
-
+    for (const [key, value] of Object.entries(csp)) {
       let policyValue: string
 
       if (Array.isArray(value)) {
@@ -144,6 +136,7 @@ export default defineNitroPlugin((nitroApp) => {
         contentArray.push(`${key} ${policyValue}`)
       }
     }
+    console.log('csp between', csp)
     const content = contentArray.join('; ').replaceAll("'nonce-{{nonce}}'", '')
     return content
   }
@@ -163,35 +156,5 @@ export default defineNitroPlugin((nitroApp) => {
     routeRules.headers = headers
     const nitro = useNitro()
     nitro.options.routeRules[path] = routeRules
-  }
-
-  function generateHash (content: string, hashAlgorithm: string) {
-    const hash = crypto.createHash(hashAlgorithm)
-    hash.update(content)
-    return `'${hashAlgorithm}-${hash.digest('base64')}'`
-  }
-
-  /**
-   * Only enable behavior if Content Security pPolicy is enabled,
-   * initial page is prerendered and generated file type is HTML.
-   * @param event H3Event
-   * @param options ModuleOptions
-   * @returns boolean
-   */
-  function isContentSecurityPolicyEnabled (event: H3Event): boolean {
-    const nitroPrerenderHeader = 'x-nitro-prerender'
-    const nitroPrerenderHeaderValue = event.node.req.headers[nitroPrerenderHeader]
-
-    // Page is not prerendered
-    if (!nitroPrerenderHeaderValue) {
-      return false
-    }
-
-    // File is not HTML
-    if (!['', '.html'].includes(path.extname(nitroPrerenderHeaderValue as string))) {
-      return false
-    }
-
-    return true
   }
 })
