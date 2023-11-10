@@ -4,7 +4,7 @@ import type {
   StrictTransportSecurityValue
 } from './types/headers'
 
-/* type SecurityHeaderNames = {
+type SecurityHeaderNames = {
   contentSecurityPolicy: 'Content-Security-Policy',
   crossOriginEmbedderPolicy: 'Cross-Origin-Embedder-Policy',
   crossOriginOpenerPolicy: 'Cross-Origin-Opener-Policy',
@@ -19,9 +19,9 @@ import type {
   xPermittedCrossDomainPolicies: 'X-Permitted-Cross-Domain-Policies',
   xXSSProtection: 'X-XSS-Protection',
   permissionsPolicy: 'Permissions-Policy'
-} */
+}
 
-export const SECURITY_HEADER_NAMES = {
+export const SECURITY_HEADER_NAMES: SecurityHeaderNames = {
   contentSecurityPolicy: 'Content-Security-Policy',
   crossOriginEmbedderPolicy: 'Cross-Origin-Embedder-Policy',
   crossOriginOpenerPolicy: 'Cross-Origin-Opener-Policy',
@@ -42,7 +42,24 @@ export function getHTTPHeaderNameForOption(headerOption: keyof typeof SECURITY_H
   return SECURITY_HEADER_NAMES[headerOption]
 }
 
-export const HTTP_HEADER_NAMES: Record<string, string> = {
+export type HttpHeaderNames = {
+  'Content-Security-Policy': 'contentSecurityPolicy',
+  'Cross-Origin-Embedder-Policy': 'crossOriginEmbedderPolicy',
+  'Cross-Origin-Opener-Policy': 'crossOriginOpenerPolicy',
+  'Cross-Origin-Resource-Policy': 'crossOriginResourcePolicy',
+  'Origin-Agent-Cluster': 'originAgentCluster',
+  'Referrer-Policy': 'referrerPolicy',
+  'Strict-Transport-Security': 'strictTransportSecurity',
+  'X-Content-Type-Options': 'xContentTypeOptions',
+  'X-DNS-Prefetch-Control': 'xDNSPrefetchControl',
+  'X-Download-Options': 'xDownloadOptions',
+  'X-Frame-Options': 'xFrameOptions',
+  'X-Permitted-Cross-Domain-Policies': 'xPermittedCrossDomainPolicies',
+  'X-XSS-Protection': 'xXSSProtection',
+  'Permissions-Policy': 'permissionsPolicy'
+} 
+
+export const HTTP_HEADER_NAMES: HttpHeaderNames = {
   'Content-Security-Policy': 'contentSecurityPolicy',
   'Cross-Origin-Embedder-Policy': 'crossOriginEmbedderPolicy',
   'Cross-Origin-Opener-Policy': 'crossOriginOpenerPolicy',
@@ -59,7 +76,7 @@ export const HTTP_HEADER_NAMES: Record<string, string> = {
   'Permissions-Policy': 'permissionsPolicy'
 }
 
-export function getOptionHeaderNameForHTTP(headerHTTP: string) {
+export function getOptionHeaderNameForHTTP(headerHTTP: keyof HttpHeaderNames) {
   return HTTP_HEADER_NAMES[headerHTTP]
 }
 

@@ -18,7 +18,8 @@ export default defineNitroPlugin((nitroApp) => {
     }
 
     const { headers, security } = getRouteRules(event)
-    console.log('in csp ssg', headers, security)
+    console.log('in csp route', event.path)
+    console.log('route rules', getRouteRules(event))
     if (!headers || !headers.contentSecurityPolicy || typeof headers.contentSecurityPolicy === 'string') {
       // This means that CSP is not enabled, or that the CSP header has been manually set in the string format
       return
@@ -105,9 +106,7 @@ export default defineNitroPlugin((nitroApp) => {
         }
       }
     }
-    console.log('csp before', headers.contentSecurityPolicy)
     const content = generateCspMetaTag(headers.contentSecurityPolicy, scriptHashes, styleHashes)
-    console.log('csp after', headers.contentSecurityPolicy)
     // Insert hashes in the http meta tag
     html.head.push(`<meta http-equiv="Content-Security-Policy" content="${content}">`)
     // Also insert hashes in static headers for presets that generate headers rules for static files
@@ -136,7 +135,6 @@ export default defineNitroPlugin((nitroApp) => {
         contentArray.push(`${key} ${policyValue}`)
       }
     }
-    console.log('csp between', csp)
     const content = contentArray.join('; ').replaceAll("'nonce-{{nonce}}'", '')
     return content
   }

@@ -7,7 +7,7 @@ import viteRemove from 'unplugin-remove/vite'
 import { defuReplaceArray } from './utils'
 import type {
   ModuleOptions,
-  NuxtSecurityRouteRules
+  // NuxtSecurityRouteRules
 } from './types/index'
 import type {
 ContentSecurityPolicyValue,
@@ -20,7 +20,7 @@ import {
   defaultSecurityConfig
 } from './defaultConfig'
 import { SECURITY_MIDDLEWARE_NAMES } from './middlewares'
-import { type HeaderMapper, SECURITY_HEADER_NAMES, getHeaderValueFromOptions, getOptionHeaderNameForHTTP } from './headers'
+import { type HeaderMapper, SECURITY_HEADER_NAMES, getHeaderValueFromOptions, getOptionHeaderNameForHTTP, HTTP_HEADER_NAMES, type HttpHeaderNames } from './headers'
 import { buildAssetsHashes } from './runtime/utils'
 import { stringify } from 'node:querystring'
 
@@ -35,11 +35,11 @@ declare module 'nuxt/schema' {
 }
 
 declare module 'nitropack' {
-  interface NitroRouteRules {
+  /* interface NitroRouteRules {
     security: NuxtSecurityRouteRules;
-  }
+  }*/
   interface NitroRouteConfig {
-    security?: NuxtSecurityRouteRules;
+    security?: Partial<ModuleOptions>;
   }
 }
 
@@ -86,17 +86,15 @@ export default defineNuxtModule<ModuleOptions>({
         ...securityOptions
       }
     )
-    console.log('options', securityOptions)
-    if (securityOptions.headers) {
-      setSecurityResponseHeaders(nuxt, securityOptions.headers)
-    }
 
     setSecurityRouteRules(nuxt, securityOptions)
+    supportDeprecatedHeaderRouteRulesFormat(nuxt)
+
     console.log('rules', nuxt.options.nitro.routeRules)
     // Remove Content-Security-Policy header in pre-rendered routes
     // When pre-rendered, the CSP is provided via html <meta> instead
     // If kept, this would block the site from rendering
-    removeCspHeaderForPrerenderedRoutes(nuxt)
+    // removeCspHeaderForPrerenderedRoutes(nuxt)
 
     if (nuxt.options.security.requestSizeLimiter) {
       addServerHandler({
@@ -188,6 +186,7 @@ export default defineNuxtModule<ModuleOptions>({
  * @param securityOptions 
  */
 const setSecurityRouteRules = (nuxt: Nuxt, securityOptions: ModuleOptions) => {
+  // TBD defuArray ???
   nuxt.options.nitro.routeRules = defu(
     nuxt.options.nitro.routeRules,
     { '/**': { security: securityOptions } }
@@ -195,11 +194,19 @@ const setSecurityRouteRules = (nuxt: Nuxt, securityOptions: ModuleOptions) => {
 }
 
 /**
+ * Merge the header rules that are defined in the standard route rules with those in the security config
+ * Security rules take precedence
+ */
+const mergeHeaderRules = () => {
+
+}
+
+/**
  * Support the deprecated method where the SecurityOptions format could be used in the standard header property of the radix router 
  * @param nuxt 
  * @param securityOptions 
  */
-const supportDeprecatedHeaderRouteRulesFormat = (nuxt: Nuxt, securityOptions: ModuleOptions) => {
+const supportDeprecatedHeaderRouteRulesFormat = (nuxt: Nuxt) => {
   for (const route in nuxt.options.nitro.routeRules) {
     const routeRule = nuxt.options.nitro.routeRules[route]
     const headers: Record<string, any> | undefined = routeRule.headers
@@ -214,30 +221,25 @@ const supportDeprecatedHeaderRouteRulesFormat = (nuxt: Nuxt, securityOptions: Mo
       if (typeof headerValue === 'string') {
         continue
       }
+      // Unsupported header value, let's skip
+      if (!Object.keys(HTTP_HEADER_NAMES).includes(headerName)) {
+        continue
+      }
       // The header was provided in the deprecated format as a SecurityOptions header, transfer into security object
-      const securityName = getOptionHeaderNameForHTTP(headerName)
+      const securityName = getOptionHeaderNameForHTTP(headerName as keyof HttpHeaderNames)
       newSecurityHeaders[securityName] = headerValue
-      // delete headers[headerName]
+      // And remove from standard header property
+      delete headers[headerName]
     }
+    routeRule.headers = headers
+    routeRule.security
+    routeRule.security = defu(
+      { headers: newSecurityHeaders },
+      routeRule.security
+    )
   }
 }
 
-const setSecurityResponseHeaders = (nuxt: Nuxt, headers: SecurityHeaders) => {
-  for (const header in headers) {
-    if (headers[header as keyof typeof headers]) {
-      const nitroRouteRules = nuxt.options.nitro.routeRules
-      const headerOptions = headers[header as keyof typeof headers]
-      const headerRoute = (headerOptions as any).route || '/**'
-      nitroRouteRules![headerRoute] = {
-        ...nitroRouteRules![headerRoute],
-        headers: {
-          ...nitroRouteRules![headerRoute]?.headers,
-          [SECURITY_HEADER_NAMES[header]]: getHeaderValueFromOptions(header as HeaderMapper, headerOptions as any)
-        }
-      }
-    }
-  }
-}
 
 const removeCspHeaderForPrerenderedRoutes = (nuxt: Nuxt) => {
   const nitroRouteRules = nuxt.options.nitro.routeRules

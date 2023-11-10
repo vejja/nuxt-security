@@ -25,7 +25,7 @@ export interface ModuleOptions {
   ssg?: Ssg;
   sri?: boolean
 }
-
+/*
 export interface NuxtSecurityRouteRules {
   requestSizeLimiter?: RequestSizeLimiter | false;
   rateLimiter?: RateLimiter | false;
@@ -36,3 +36,4 @@ export interface NuxtSecurityRouteRules {
   ssg?: Ssg;
   sri?: boolean;
 }
+*/
