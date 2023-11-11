@@ -23,6 +23,7 @@ import { SECURITY_MIDDLEWARE_NAMES } from './middlewares'
 import { type HeaderMapper, SECURITY_HEADER_NAMES, getHeaderValueFromOptions, getOptionHeaderNameForHTTP, HTTP_HEADER_NAMES, type HttpHeaderNames } from './headers'
 import { buildAssetsHashes } from './runtime/utils'
 import { stringify } from 'node:querystring'
+import nuxtConfig from '~/docs/nuxt.config'
 
 declare module 'nuxt/schema' {
   interface NuxtOptions {
@@ -197,8 +198,28 @@ const setSecurityRouteRules = (nuxt: Nuxt, securityOptions: ModuleOptions) => {
  * Merge the header rules that are defined in the standard route rules with those in the security config
  * Security rules take precedence
  */
-const mergeHeaderRules = () => {
+const mergeHeaderRules = (nuxt: Nuxt) => {
+  for (const route in nuxt.options.nitro.routeRules) {
+    const { security } = nuxt.options.nitro.routeRules[route]
+    const { headers } = nuxt.options.nitro.routeRules[route]
+    if (security?.headers !== undefined) {
+      const modifiedHeaders = transformSecurityHeadersIntoHttpHeaders(security.headers)
+      nuxt.options.nitro.routeRules[route] = defu(
+        { headers: modifiedHeaders },
+        nuxt.options.nitro.routeRules[route]
+      )
+    }
+  }
+}
 
+/**
+ * 
+ */
+const transformSecurityHeadersIntoHttpHeaders = (headers: SecurityHeaders | false) => {
+  if (!headers) {
+    return { 'Content-Security-Policy': 'toto'}
+  }
+  return { 'Content-Security-Policy' : 'Toto'}
 }
 
 /**
